@@ -1,5 +1,10 @@
-$(document).ready(function(){
+var timer;
+$(document).ready(function() {
   Parse.initialize("EyODBv03mdUNxFRcPhEKz0lWekFFqfIgmdCwudr1", "zu97AoDaKu74yJQRyUmrQSfnQDtlJZLLHVYCubsW");
+  
+  $("body").bind("DOMSubtreeModified", function() {
+    colorizeProfileRows();
+  });
   colorizeProfileRows();
 });
 
@@ -58,7 +63,7 @@ function colorizeProfileRows() {
   	if (profilesByHref[href]) {
   		return;
   	}
-  	console.log('processing: ' + href);
+
   	profilesByHref[href] = true;
 
     loadFromParse(href, function(profileObj) {
