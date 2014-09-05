@@ -1,16 +1,52 @@
-var timer;
+var WORDS = {
+  coding: null,
+  system: null,
+  bad: null
+};
+
 $(document).ready(function() {
   Parse.initialize("EyODBv03mdUNxFRcPhEKz0lWekFFqfIgmdCwudr1", "zu97AoDaKu74yJQRyUmrQSfnQDtlJZLLHVYCubsW");
   
+  // Load words from Parse, then initialize
+
+  var WordSet = Parse.Object.extend("WordSet");
+  var query = new Parse.Query(WordSet);
+  query.equalTo("userName", "test-user-1");
+  query.find({
+    success: function(results) {      
+      if (!(results && results.length !== 0)) {
+        // create it
+        var p = new WordSet();
+        p.save({
+          userName: "test-user-1"
+        });
+      } else {
+        var user = results[0];
+        WORDS.coding = user.get('kw_coding');
+        WORDS.system = user.get('kw_system');
+        WORDS.bad = user.get('kw_bad');
+      }
+      initialize();
+    },
+    error: function(error) {
+      alert('LI extension is broken!')
+    }
+  });
+
+});
+
+function initialize() {
   $("body").bind("DOMSubtreeModified", function() {
     colorizeProfileRows();
   });
   colorizeProfileRows();
-});
-
-
+}
 
 function saveIframeToParse(path, frameRoot) {
+  var rawText = _getProfileText(frameRoot);
+  if (!rawText) {
+    return;
+  }
   var LIRecruiterProfile = Parse.Object.extend("LIRecruiterProfile");
   var query = new Parse.Query(LIRecruiterProfile);
   query.equalTo("linkedinPath", path);
@@ -21,11 +57,11 @@ function saveIframeToParse(path, frameRoot) {
         var p = new LIRecruiterProfile();
         p.save({
           linkedinPath: path,
-          rawText: _getProfileText(frameRoot)
+          rawText: rawText
         });
       } else {
         // update it
-        results[0].set("rawText", _getProfileText(frameRoot));
+        results[0].set("rawText", rawText);
         results[0].save();
       }
     },
@@ -63,7 +99,6 @@ function colorizeProfileRows() {
   	if (profilesByHref[href]) {
   		return;
   	}
-
   	profilesByHref[href] = true;
 
     loadFromParse(href, function(profileObj) {
@@ -101,8 +136,9 @@ function scoreProfile(href, row, bodyText) {
 function _getProfileText(root) {
   var bodyText = $("#profile-ugc", root).text();
   if (!bodyText) {
-    $("#background script").remove();
-    bodyText = $("#background", root).text();
+    $("#background script", root).remove();
+    var htmlStr = $("#background", root).html();
+    bodyText = (htmlStr || "").replace(/<[^>]*>/g, " ").trim();
   }
   return bodyText;
 }
@@ -127,110 +163,13 @@ var CODING_MAX_SCORE = 5.0;
 var SYSTEM_MAX_SCORE = 5.0;
 var TOTAL_MAX_SCORE = CODING_MAX_SCORE + SYSTEM_MAX_SCORE;
 
-var KW_CODING = [
-  "coding",
-  "software development",
-  "software engineer",
-  "programmer",
-  "programming",
-  "developer",
-  "java",
-  "PHP",
-  "Ruby",
-  "python",
-  "perl",
-  "computer science",
-  "algorithm",
-  "functional",
-  "object oriented"
-];
-
-var KW_SYSTEM = [
-  "Load balancing",
-  "apache",
-  "DNS",
-  "TCP/IP",
-  "system administration",
-  "linux administration",
-  "unix administration",
-  "debian",
-  "ubuntu",
-  "fedora",
-  "gentoo",
-  "slackware",
-  "redhat",
-  "openbsd",
-  "freebsd",
-  "cents",
-  "linux user",
-  "unix user",
-  "distributed systems",
-  "operating systems",
-  "linux",
-  "unix",
-  "puppet",
-  "chef",
-  "deployment",
-  "database administration",
-  "MYSQL",
-  "hadoop",
-  "high availability",
-  "scaleability",
-  "infrastructure",
-  "system architecture",
-  "troubleshooting",
-  "storage",
-  "IPV6",
-  "networking",
-  "virtualization",
-  "cluster",
-  "network security",
-  "cloud computing",
-  "solaris",
-  "configuration management",
-  "data center",
-  "system monitoring",
-  "devops",
-  "PostgreSQL",
-  "GNU/Linux",
-  "BSD",
-  "high performance computing"
-];
-
-var KW_BAD = [
-  "Windows",
-  ".NET",
-  "Microsoft",
-  "clearcase",
-  "websphere",
-  "junit",
-  "HTML",
-  "CSS",
-  "front end",
-  "oracle",
-  "IBM",
-  "dell",
-  "HP",
-  "Cobbler",
-  "Active Directory",
-  "Cisco",
-  "C#",
-  "Business Analysis",
-  "Mac",
-  "Enterprise",
-  "Certified",
-  "photoshop",
-  // "R",
-  "matlab",
-  "Business intelligence", 
-  "ETL", 
-  "analytics", 
-  "data mining", 
-  "data modeling",
-  "netapp"
-];
-
 function scoreBucket(keywords, allWords) {
+  if (!keywords) {
+    return 0;
+  }
+
+  keywords = keywords.split(", ");
+
   var sum = 0;
   keywords.forEach(function(kw) {
     var match = allWords.match(new RegExp(kw, "ig"));
@@ -238,20 +177,24 @@ function scoreBucket(keywords, allWords) {
       sum += 1;
     }
   });
-  KW_BAD.forEach(function(bad_kw) {
-    var match = allWords.match(new RegExp(bad_kw, "ig"));
-    if (match) {
-      sum -= 1;
-    }
-  });
+  var badWords = WORDS.bad;
+  if (badWords) {
+    badWords = badWords.split(", ");
+    badWords.forEach(function(bad_kw) {
+      var match = allWords.match(new RegExp(bad_kw, "ig"));
+      if (match) {
+        sum -= 1;
+      }
+    });
+  }
   return Math.max(sum, 0);
 }
 
 function scoreCode(words) {
-  return Math.min(scoreBucket(KW_CODING, words), CODING_MAX_SCORE);
+  return Math.min(scoreBucket(WORDS.coding, words), CODING_MAX_SCORE);
 }
 
 function scoreSystem(words) {
-  return Math.min(scoreBucket(KW_SYSTEM, words), SYSTEM_MAX_SCORE);
+  return Math.min(scoreBucket(WORDS.system, words), SYSTEM_MAX_SCORE);
 }
 

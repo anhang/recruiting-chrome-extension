@@ -1,6 +1,6 @@
 {
   "name": "Recruiting",
-  "version": "0.22",
+  "version": "0.3",
   "manifest_version": 2,
   "description": "Recruiting",
   "permissions": ["contextMenus", "http://www.linkedin.com/*"],
@@ -18,7 +18,17 @@
     }
   ],
   "permissions": [
+    "contextMenus",
     "http://api.parse.com/",
     "https://api.parse.com/"
-  ]
+  ],
+  "icons": { 
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  },
+  "browser_action": {
+    "default_icon": "images/icon16.png",
+    "default_popup": "popup.html"
+  }
 }
